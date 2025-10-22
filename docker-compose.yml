@@ -1,0 +1,294 @@
+version: '3.8'
+
+services:
+  # PostgreSQL - Relational data storage
+  postgresql:
+    image: postgres:15-alpine
+    container_name: hughes_postgresql
+    environment:
+      POSTGRES_DB: hughes_clues
+      POSTGRES_USER: hughes_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-HughesClues2025!}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts/postgres:/docker-entrypoint-initdb.d
+    networks:
+      - hughes_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hughes_admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB - Document storage for scraped data
+  mongodb:
+    image: mongo:7.0
+    container_name: hughes_mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: hughes_admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-HughesClues2025!}
+      MONGO_INITDB_DATABASE: hughes_clues
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    networks:
+      - hughes_network
+    restart: unless-stopped
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/hughes_clues --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - Caching and real-time data
+  redis:
+    image: redis:7-alpine
+    container_name: hughes_redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-HughesClues2025!} --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - hughes_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Neo4j - Graph database for relationships
+  neo4j:
+    image: neo4j:5.13
+    container_name: hughes_neo4j
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-HughesClues2025!}
+      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+      NEO4J_dbms_memory_heap_initial__size: 512m
+      NEO4J_dbms_memory_heap_max__size: 2g
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_plugins:/plugins
+    networks:
+      - hughes_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p ${NEO4J_PASSWORD:-HughesClues2025!} 'RETURN 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Elasticsearch - Full-text search and analytics
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: hughes_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-HughesClues2025!}
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - hughes_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -u elastic:${ELASTIC_PASSWORD:-HughesClues2025!} -s http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Tor - Dark web access
+  tor:
+    image: goldy/tor-hidden-service:latest
+    container_name: hughes_tor
+    environment:
+      TOR_CONTROL_PASSWORD: ${TOR_PASSWORD:-HughesClues2025!}
+    ports:
+      - "9050:9050"  # SOCKS proxy
+      - "9051:9051"  # Control port
+    volumes:
+      - tor_data:/var/lib/tor
+    networks:
+      - hughes_network
+    restart: unless-stopped
+
+  # FastAPI Backend
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: hughes_api
+    environment:
+      MONGODB_URI: mongodb://hughes_admin:${MONGO_PASSWORD:-HughesClues2025!}@mongodb:27017
+      POSTGRES_URI: postgresql://hughes_admin:${POSTGRES_PASSWORD:-HughesClues2025!}@postgresql:5432/hughes_clues
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-HughesClues2025!}
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-HughesClues2025!}
+      ELASTICSEARCH_HOST: elasticsearch:9200
+      ELASTICSEARCH_PASSWORD: ${ELASTIC_PASSWORD:-HughesClues2025!}
+      TOR_PROXY: socks5h://tor:9050
+      TOR_CONTROL_PASSWORD: ${TOR_PASSWORD:-HughesClues2025!}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./modules:/app/modules
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      tor:
+        condition: service_started
+    networks:
+      - hughes_network
+    restart: unless-stopped
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Master Orchestrator
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile.orchestrator
+    container_name: hughes_orchestrator
+    environment:
+      MONGODB_URI: mongodb://hughes_admin:${MONGO_PASSWORD:-HughesClues2025!}@mongodb:27017
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-HughesClues2025!}
+      TOR_PROXY: socks5h://tor:9050
+    volumes:
+      - ./modules:/app/modules
+      - ./config.yaml:/app/config.yaml
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - api
+      - mongodb
+      - redis
+      - tor
+    networks:
+      - hughes_network
+    restart: unless-stopped
+    command: python master_orchestrator.py
+
+  # React Dashboard (Frontend)
+  dashboard:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: hughes_dashboard
+    environment:
+      REACT_APP_API_URL: http://localhost:8000
+      REACT_APP_WS_URL: ws://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - hughes_network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: hughes_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - api
+      - dashboard
+    networks:
+      - hughes_network
+    restart: unless-stopped
+
+  # Prometheus - Metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: hughes_prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - hughes_network
+    restart: unless-stopped
+
+  # Grafana - Metrics visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: hughes_grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-HughesClues2025!}
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - hughes_network
+    restart: unless-stopped
+
+networks:
+  hughes_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  mongo_data:
+    driver: local
+  mongo_config:
+    driver: local
+  redis_data:
+    driver: local
+  neo4j_data:
+    driver: local
+  neo4j_logs:
+    driver: local
+  neo4j_plugins:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  tor_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

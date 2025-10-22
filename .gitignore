@@ -1,0 +1,15 @@
+# .gitignore (place at project root)
+venv/
+.env
+*.pyc
+__pycache__/
+data/
+logs/
+build/
+dist/
+*.so
+*.dll
+node_modules/
+.DS_Store
+.idea/
+.vscode/
