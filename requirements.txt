@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+selenium
+python-whois
+dnspython
+colorama
+tqdm
+argparse
