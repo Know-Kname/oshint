@@ -1,0 +1,46 @@
+# Hughes Clues Configuration File
+
+# Database Configuration
+mongodb_uri: "mongodb://localhost:27017"
+redis_host: "localhost"
+redis_port: 6379
+
+# Performance Settings
+max_workers: 4
+cache_ttl: 3600  # 1 hour
+enable_uvloop: true
+
+# API Keys (fill in your keys)
+api_keys:
+  shodan_key: ""
+  censys_id: ""
+  censys_secret: ""
+  virustotal_key: ""
+  securitytrails_key: ""
+  urlscan_key: ""
+  hibp_key: ""
+
+# Analysis Configuration
+analysis:
+  anomaly_threshold: 0.95
+  correlation_threshold: 0.7
+  risk_weights:
+    vulnerabilities: 0.3
+    exposures: 0.25
+    breaches: 0.2
+    infrastructure: 0.15
+    reconnaissance: 0.1
+
+# Operation Timeouts (seconds)
+timeouts:
+  reconnaissance: 300
+  web_scraping: 600
+  credential_harvest: 300
+  geolocation: 120
+  dark_web: 900
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "hughes_clues.log"

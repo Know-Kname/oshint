@@ -1,8 +1,42 @@
-requests
-beautifulsoup4
-selenium
-python-whois
-dnspython
-colorama
-tqdm
-argparse
+# HTTP and Async
+aiohttp>=3.8.0
+requests>=2.28.0
+httpx>=0.24.0
+
+# Web Scraping & Processing
+beautifulsoup4>=4.11.0
+selenium>=4.9.0
+lxml>=4.9.0
+
+# DNS & Network
+dnspython>=2.3.0
+python-whois>=0.8.0
+aiodns>=3.0.0
+netaddr>=0.8.0
+
+# Data Processing & Analysis
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+scikit-learn>=1.2.0
+
+# Performance & Async
+uvloop>=0.17.0; platform_system != "Windows"
+aiofiles>=23.1.0
+motor>=3.1.0  # Async MongoDB
+redis>=4.5.0
+aioredis>=2.0.0
+
+# Utilities
+tqdm>=4.65.0
+colorama>=0.4.6
+pyyaml>=6.0.0
+cryptography>=40.0.0
+python-dateutil>=2.8.2
+
+# Development & Testing
+pytest>=7.3.0
+pytest-asyncio>=0.21.0
+black>=23.3.0
+mypy>=1.3.0
+pylint>=2.17.0
