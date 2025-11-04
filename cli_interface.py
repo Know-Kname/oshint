@@ -359,6 +359,9 @@ OSINT Intelligence Gathering Framework
                     'risk_score': report.risk_score
                 })
 
+                # Display results
+                self.display_intelligence_report(report)
+
                 return report
 
             finally:
@@ -384,6 +387,10 @@ OSINT Intelligence Gathering Framework
             self.show_status(f"Risk Score: {results['risk_score']}/100", "info")
 
             self.results[f"{target}_recon"] = results
+
+            # Display results
+            self.display_recon_results(results)
+
             return results
 
         except Exception as e:
@@ -416,11 +423,241 @@ OSINT Intelligence Gathering Framework
                 self.show_status(f"Found {results['statistics']['total_credentials']} credentials", "info")
 
             self.results[f"{target}_creds"] = results
+
+            # Display results
+            self.display_cred_harvest_results(results)
+
             return results
 
         except Exception as e:
             self.show_status(f"Error: {str(e)}", "error")
             return None
+
+    def display_recon_results(self, results: Dict):
+        """Display reconnaissance results"""
+        if not results:
+            self.show_status("No reconnaissance results to display", "warning")
+            return
+
+        print("\n" + "="*80)
+        print("RECONNAISSANCE RESULTS")
+        print("="*80 + "\n")
+
+        # DNS Information
+        if 'dns' in results:
+            dns = results['dns']
+            print("[DNS ENUMERATION]")
+            if dns.get('records'):
+                records = dns['records']
+                for record_type, values in records.items():
+                    if values:
+                        print(f"  {record_type}: {values}")
+            if dns.get('zone_transfer'):
+                print(f"  ✓ Zone Transfer Successful!")
+                if dns['zone_transfer'].get('records'):
+                    print(f"    Records: {len(dns['zone_transfer']['records'])}")
+            print()
+
+        # WHOIS Information
+        if 'whois' in results and results['whois']:
+            print("[WHOIS INFORMATION]")
+            whois = results['whois']
+            if isinstance(whois, dict):
+                for key, value in whois.items():
+                    if value and key not in ['raw_data']:
+                        print(f"  {key}: {value}")
+            print()
+
+        # SSL Certificate
+        if 'ssl_certificate' in results and results['ssl_certificate']:
+            print("[SSL/TLS CERTIFICATE]")
+            ssl = results['ssl_certificate']
+            if isinstance(ssl, dict):
+                if ssl.get('issuer'):
+                    print(f"  Issuer: {ssl['issuer']}")
+                if ssl.get('subject'):
+                    print(f"  Subject: {ssl['subject']}")
+                if ssl.get('valid_from'):
+                    print(f"  Valid From: {ssl['valid_from']}")
+                if ssl.get('valid_until'):
+                    print(f"  Valid Until: {ssl['valid_until']}")
+            print()
+
+        # Technology
+        if 'technologies' in results and results['technologies']:
+            print("[TECHNOLOGY STACK]")
+            techs = results['technologies']
+            if isinstance(techs, dict):
+                for tech_type, items in techs.items():
+                    if items:
+                        print(f"  {tech_type}: {items}")
+            print()
+
+        # Shodan
+        if 'shodan' in results and results['shodan']:
+            print("[SHODAN INTELLIGENCE]")
+            shodan = results['shodan']
+            if isinstance(shodan, dict):
+                if shodan.get('results'):
+                    for result in shodan['results'][:5]:  # Show first 5
+                        if isinstance(result, dict):
+                            print(f"  IP: {result.get('ip_str')}")
+                            print(f"    Port: {result.get('port')}")
+                            print(f"    Service: {result.get('org')}")
+            print()
+
+        # GitHub Exposure
+        if 'github_exposure' in results and results['github_exposure']:
+            print("[GITHUB EXPOSURE]")
+            github = results['github_exposure']
+            if github.get('repositories'):
+                repos = github['repositories']
+                for repo in repos[:5]:  # Show first 5
+                    if isinstance(repo, dict):
+                        print(f"  Repository: {repo.get('name', 'Unknown')}")
+                        print(f"    URL: {repo.get('url')}")
+                        print(f"    Risk: {repo.get('risk_score', 'N/A')}")
+            print()
+
+        # Cloud Assets
+        if 'cloud_assets' in results and results['cloud_assets']:
+            print("[CLOUD ASSETS]")
+            cloud = results['cloud_assets']
+            if cloud.get('aws_s3_buckets'):
+                buckets = cloud['aws_s3_buckets']
+                print(f"  S3 Buckets: {len(buckets)} found")
+                for bucket in buckets[:5]:  # Show first 5
+                    if isinstance(bucket, dict):
+                        status = bucket.get('status', 'UNKNOWN')
+                        print(f"    - {bucket.get('bucket')} [{status}]")
+            print()
+
+        # Breaches
+        if 'breaches' in results and results['breaches']:
+            print("[BREACH INFORMATION]")
+            breaches = results['breaches']
+            if isinstance(breaches, list):
+                print(f"  Total breaches: {len(breaches)}")
+                for breach in breaches[:5]:  # Show first 5
+                    if isinstance(breach, dict):
+                        print(f"    - {breach.get('name', 'Unknown')}: {breach.get('count', '?')} records")
+            print()
+
+        print("="*80 + "\n")
+
+    def display_cred_harvest_results(self, results: Dict):
+        """Display credential harvesting results"""
+        if not results:
+            self.show_status("No credential results to display", "warning")
+            return
+
+        print("\n" + "="*80)
+        print("CREDENTIAL HARVESTING RESULTS")
+        print("="*80 + "\n")
+
+        if results.get('statistics'):
+            stats = results['statistics']
+            print("[STATISTICS]")
+            print(f"  Total Credentials Found: {stats.get('total_credentials', 0)}")
+            print(f"  Verified Credentials: {stats.get('verified_credentials', 0)}")
+            print(f"  Success Rate: {stats.get('success_rate', 0):.1%}")
+            print()
+
+        if results.get('credentials_found'):
+            creds = results['credentials_found']
+            print(f"[CREDENTIALS ({len(creds)} total)]")
+            for cred in creds[:10]:  # Show first 10
+                if isinstance(cred, dict):
+                    print(f"  Username: {cred.get('username', 'N/A')}")
+                    print(f"    Password: {cred.get('password', '***hidden***')[:20]}...")
+                    print(f"    Source: {cred.get('source', 'Unknown')}")
+                    if cred.get('verified'):
+                        print(f"    Status: ✓ VERIFIED")
+                    print()
+
+        if results.get('password_mutations'):
+            mutations = results['password_mutations']
+            print(f"[PASSWORD MUTATIONS ({len(mutations)} total)]")
+            for mut in mutations[:10]:  # Show first 10
+                print(f"  - {mut}")
+            print()
+
+        print("="*80 + "\n")
+
+    def display_intelligence_report(self, report):
+        """Display complete intelligence report from orchestrator"""
+        if not report:
+            self.show_status("No intelligence report to display", "warning")
+            return
+
+        print("\n" + "="*80)
+        print("INTELLIGENCE REPORT")
+        print("="*80 + "\n")
+
+        # Summary
+        print("[SUMMARY]")
+        print(f"  Target: {report.target if hasattr(report, 'target') else 'N/A'}")
+        print(f"  Risk Score: {report.risk_score if hasattr(report, 'risk_score') else 0}/100")
+        print(f"  Confidence: {report.confidence if hasattr(report, 'confidence') else 0:.1%}")
+        print(f"  Timestamp: {report.timestamp if hasattr(report, 'timestamp') else 'N/A'}")
+        print()
+
+        # Try to display report data
+        report_dict = None
+        if hasattr(report, '__dict__'):
+            report_dict = report.__dict__
+        elif isinstance(report, dict):
+            report_dict = report
+
+        if report_dict:
+            # Reconnaissance
+            if 'reconnaissance' in report_dict and report_dict['reconnaissance']:
+                recon = report_dict['reconnaissance']
+                print("[RECONNAISSANCE]")
+                if isinstance(recon, dict):
+                    if recon.get('dns'):
+                        print(f"  ✓ DNS Enumeration Complete")
+                    if recon.get('whois'):
+                        print(f"  ✓ WHOIS Lookup Complete")
+                    if recon.get('ssl_certificate'):
+                        print(f"  ✓ SSL Certificate Analyzed")
+                    if recon.get('technologies'):
+                        print(f"  ✓ Technology Stack Identified")
+                    if recon.get('shodan'):
+                        print(f"  ✓ Shodan Intelligence Gathered")
+                print()
+
+            # GitHub Exposure
+            if 'github_exposure' in report_dict and report_dict['github_exposure']:
+                github = report_dict['github_exposure']
+                if isinstance(github, dict):
+                    if github.get('repositories'):
+                        print(f"[GITHUB EXPOSURE]")
+                        print(f"  Exposed Repositories: {len(github['repositories'])}")
+                    print()
+
+            # Cloud Assets
+            if 'cloud_assets' in report_dict and report_dict['cloud_assets']:
+                cloud = report_dict['cloud_assets']
+                if isinstance(cloud, dict):
+                    if cloud.get('aws_s3_buckets'):
+                        print(f"[CLOUD ASSETS]")
+                        print(f"  S3 Buckets Found: {len(cloud['aws_s3_buckets'])}")
+                    print()
+
+            # Credentials
+            if 'credentials_found' in report_dict and report_dict['credentials_found']:
+                creds = report_dict['credentials_found']
+                print(f"[CREDENTIALS]")
+                if isinstance(creds, list):
+                    print(f"  Total Found: {len(creds)}")
+                    verified = sum(1 for c in creds if isinstance(c, dict) and c.get('verified'))
+                    print(f"  Verified: {verified}")
+                print()
+
+        print("="*80 + "\n")
+        print("For detailed results, run 'View Results' from the main menu.")
+        print()
 
     def main_loop(self):
         """Main CLI loop"""
