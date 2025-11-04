@@ -17,6 +17,7 @@ from datetime import datetime
 import logging
 from pathlib import Path
 import sys
+import os
 from enum import Enum
 import importlib.util
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
@@ -95,8 +96,14 @@ class IntelligenceReport:
 
 class ModuleLoader:
     """Dynamically load and manage intelligence modules"""
-    
-    def __init__(self, modules_dir: str = "/opt/hughes_clues/modules"):
+
+    def __init__(self, modules_dir: str = None):
+        if modules_dir is None:
+            # Try multiple possible locations in order of preference
+            modules_dir = os.getenv('MODULES_DIR') or \
+                         os.path.join(os.getenv('APP_DIR', '/app'), 'modules') or \
+                         '/opt/hughes_clues/modules'
+
         self.modules_dir = Path(modules_dir)
         self.loaded_modules: Dict[str, Any] = {}
         
@@ -189,14 +196,20 @@ class OperationQueue:
 
 class MasterOrchestrator:
     """Central intelligence operations coordinator"""
-    
-    def __init__(self, config_file: str = "/opt/hughes_clues/config.yaml"):
+
+    def __init__(self, config_file: str = None):
         logger.info("""
 ╔═══════════════════════════════════════════════════════════╗
 ║   HUGHES CLUES - MASTER ORCHESTRATOR INITIALIZING        ║
 ╚═══════════════════════════════════════════════════════════╝
         """)
-        
+
+        if config_file is None:
+            # Try multiple possible locations for config
+            config_file = os.getenv('CONFIG_FILE') or \
+                         os.path.join(os.getenv('APP_DIR', '/app'), 'config.yaml') or \
+                         '/opt/hughes_clues/config.yaml'
+
         # Load configuration
         self.config = self.load_config(config_file)
         
@@ -208,6 +221,7 @@ class MasterOrchestrator:
         
         # Worker threads
         self.worker_threads: List[threading.Thread] = []
+        self.worker_loops: Dict[int, asyncio.AbstractEventLoop] = {}
         self.is_running = False
         self.max_workers = self.config.get('max_workers', 4)
         
@@ -217,12 +231,13 @@ class MasterOrchestrator:
         self.operations_collection = self.db['operations']
         self.reports_collection = self.db['reports']
         
-        # Redis for real-time updates
+        # Redis for real-time updates and caching
         self.redis = Redis(
             host=self.config.get('redis_host', 'localhost'),
             port=self.config.get('redis_port', 6379),
             decode_responses=True
         )
+        self.cache_ttl = self.config.get('cache_ttl', 3600)  # 1 hour default
         
         # Statistics
         self.stats = {
@@ -432,9 +447,10 @@ class MasterOrchestrator:
             # Update stats
             self.stats['operations_completed'] += 1
             
-            # Store in database
+            # Store in database with proper serialization
+            operation_doc = self._serialize_operation(operation)
             self.operations_collection.insert_one({
-                'operation': operation.__dict__,
+                'operation': operation_doc,
                 'timestamp': datetime.now().isoformat()
             })
             
@@ -456,39 +472,41 @@ class MasterOrchestrator:
             
             self.stats['operations_failed'] += 1
     
-    def worker_loop(self):
-        """Worker thread loop"""
-        logger.info("[*] Worker thread started")
-        
-        while self.is_running:
-            operation = self.operation_queue.get_next_operation()
-            
-            if operation:
-                # Execute in async event loop
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                try:
-                    loop.run_until_complete(self.execute_operation(operation))
-                except Exception as e:
-                    logger.error(f"[!] Worker error: {str(e)}")
-                finally:
-                    loop.close()
-            else:
-                time.sleep(0.5)
-        
-        logger.info("[*] Worker thread stopped")
+    def worker_loop(self, worker_id: int):
+        """Worker thread loop with persistent event loop"""
+        logger.info(f"[*] Worker thread {worker_id} started")
+
+        # Create and reuse event loop for this worker thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        self.worker_loops[worker_id] = loop
+
+        try:
+            while self.is_running:
+                operation = self.operation_queue.get_next_operation()
+
+                if operation:
+                    try:
+                        loop.run_until_complete(self.execute_operation(operation))
+                    except Exception as e:
+                        logger.error(f"[!] Worker {worker_id} error: {str(e)}")
+                else:
+                    time.sleep(0.5)
+        finally:
+            loop.close()
+            del self.worker_loops[worker_id]
+            logger.info(f"[*] Worker thread {worker_id} stopped")
     
     def start_workers(self):
         """Start worker threads"""
         self.is_running = True
-        
+
         for i in range(self.max_workers):
-            thread = threading.Thread(target=self.worker_loop, name=f"Worker-{i}")
+            thread = threading.Thread(target=self.worker_loop, args=(i,), name=f"Worker-{i}")
             thread.daemon = True
             thread.start()
             self.worker_threads.append(thread)
-        
+
         logger.info(f"[+] Started {self.max_workers} worker threads")
     
     def stop_workers(self):
@@ -575,9 +593,10 @@ class MasterOrchestrator:
         # Calculate confidence
         report.confidence = completed / len(operations) if operations else 0.0
         
-        # Store report
+        # Store report with proper serialization
+        report_doc = self._serialize_report(report)
         self.reports_collection.insert_one({
-            'report': report.__dict__,
+            'report': report_doc,
             'timestamp': datetime.now().isoformat()
         })
         
@@ -588,22 +607,107 @@ class MasterOrchestrator:
     def get_system_stats(self) -> Dict:
         """Get system statistics"""
         process = psutil.Process()
-        
+
         uptime = (datetime.now() - self.stats['uptime_start']).total_seconds()
-        
+
+        # Calculate success rate safely
+        total_operations = self.stats['operations_completed'] + self.stats['operations_failed']
+        success_rate = (
+            self.stats['operations_completed'] / total_operations
+            if total_operations > 0
+            else 0.0
+        )
+
         return {
             'uptime_seconds': uptime,
             'operations_completed': self.stats['operations_completed'],
             'operations_failed': self.stats['operations_failed'],
-            'success_rate': self.stats['operations_completed'] / 
-                          (self.stats['operations_completed'] + self.stats['operations_failed'])
-                          if (self.stats['operations_completed'] + self.stats['operations_failed']) > 0 else 0,
+            'success_rate': success_rate,
             'cpu_percent': process.cpu_percent(),
             'memory_mb': process.memory_info().rss / 1024 / 1024,
             'threads': len(self.worker_threads),
             'queued_operations': self.operation_queue.queue.qsize()
         }
     
+    def cache_result(self, key: str, value: Any, ttl: int = None) -> bool:
+        """Cache a result in Redis"""
+        try:
+            ttl = ttl or self.cache_ttl
+            self.redis.setex(
+                key,
+                ttl,
+                json.dumps(value, default=str)
+            )
+            logger.debug(f"[+] Cached result: {key}")
+            return True
+        except Exception as e:
+            logger.error(f"[!] Cache write error: {str(e)}")
+            return False
+
+    def get_cached_result(self, key: str) -> Optional[Dict]:
+        """Retrieve a cached result from Redis"""
+        try:
+            data = self.redis.get(key)
+            if data:
+                logger.debug(f"[+] Cache hit: {key}")
+                return json.loads(data)
+            return None
+        except Exception as e:
+            logger.error(f"[!] Cache read error: {str(e)}")
+            return None
+
+    def invalidate_cache(self, pattern: str) -> int:
+        """Invalidate cached results by pattern"""
+        try:
+            keys = self.redis.keys(pattern)
+            if keys:
+                count = self.redis.delete(*keys)
+                logger.debug(f"[+] Invalidated {count} cache entries")
+                return count
+            return 0
+        except Exception as e:
+            logger.error(f"[!] Cache invalidation error: {str(e)}")
+            return 0
+
+    @staticmethod
+    def _serialize_operation(operation: 'Operation') -> Dict:
+        """Serialize operation to MongoDB-compatible dict"""
+        doc = {
+            'op_id': operation.op_id,
+            'op_type': operation.op_type.value,
+            'target': operation.target,
+            'params': operation.params,
+            'status': operation.status.value,
+            'progress': operation.progress,
+            'result': operation.result,
+            'error': operation.error,
+            'created_at': operation.created_at.isoformat() if operation.created_at else None,
+            'started_at': operation.started_at.isoformat() if operation.started_at else None,
+            'completed_at': operation.completed_at.isoformat() if operation.completed_at else None,
+        }
+        return doc
+
+    @staticmethod
+    def _serialize_report(report: 'IntelligenceReport') -> Dict:
+        """Serialize intelligence report to MongoDB-compatible dict"""
+        doc = {
+            'target': report.target,
+            'report_id': report.report_id,
+            'operations_completed': report.operations_completed,
+            'total_operations': report.total_operations,
+            'reconnaissance': report.reconnaissance,
+            'web_intelligence': report.web_intelligence,
+            'ai_insights': report.ai_insights,
+            'credentials_found': report.credentials_found,
+            'geolocation_data': report.geolocation_data,
+            'dark_web_intel': report.dark_web_intel,
+            'threat_assessment': report.threat_assessment,
+            'risk_score': report.risk_score,
+            'confidence': report.confidence,
+            'timestamp': report.timestamp.isoformat() if report.timestamp else None,
+        }
+        return doc
+
     def shutdown(self):
         """Graceful shutdown"""
         logger.info("[*] Initiating graceful shutdown...")

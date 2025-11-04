@@ -1,15 +1,73 @@
-# .gitignore (place at project root)
-venv/
+# Environment Variables
 .env
-*.pyc
+.env.local
+.env.*.local
+
+# Configuration
+config.yaml
+config.*.yaml
+!config.example.yaml
+
+# Python
 __pycache__/
-data/
-logs/
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
 dist/
-*.so
-*.dll
-node_modules/
-.DS_Store
-.idea/
+*.egg-info/
+.installed.cfg
+MANIFEST
+
+# Virtual Environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDEs
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Results & Exports
+results/
+exports/
+reports/
+output/
+
+# Cache
+.cache/
+*.cache
+.pytest_cache/
+
+# Docker
+.docker
+docker-compose.override.yml
+
+# Credentials
+.credentials/
+credentials/
+secrets/
+
+# Testing
+.coverage
+.tox/
+
+# Temporary
+*.tmp
+*.temp
+.scratch/

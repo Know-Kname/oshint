@@ -125,10 +125,10 @@ class AdvancedReconModule:
                     dns_results['zone_transfer'] = {
                         'server': ns_server,
                         'success': True,
-                        'records': [node.to_text(name) for name in zone.nodes.keys()]
+                        'records': [name.to_text() for name in zone.nodes.keys()]
                     }
                     break
-                except:
+                except Exception:
                     continue
         
         # Reverse DNS
@@ -232,7 +232,7 @@ class AdvancedReconModule:
     async def github_dorking(self) -> Dict:
         """Search GitHub for exposed secrets and sensitive information"""
         print(f"[*] Searching GitHub for {self.target} exposure")
-        
+
         search_queries = [
             f'"{self.target}" password',
             f'"{self.target}" api_key',
@@ -242,15 +242,26 @@ class AdvancedReconModule:
             f'"{self.target}" .env',
             f'"{self.target}" config.yml',
         ]
-        
+
         findings = []
-        
+
         try:
+            import time as time_module
             for query in search_queries:
                 url = f"https://api.github.com/search/code?q={query}"
-                
+
                 if self.session:
                     async with self.session.get(url, timeout=self.timeout) as response:
+                        # Check rate limit headers
+                        remaining = response.headers.get('X-RateLimit-Remaining')
+                        reset_time = response.headers.get('X-RateLimit-Reset')
+
+                        if remaining and int(remaining) < 1:
+                            if reset_time:
+                                wait_seconds = max(0, int(reset_time) - int(time_module.time()))
+                                print(f"[!] GitHub rate limit exceeded, waiting {wait_seconds}s")
+                                await asyncio.sleep(wait_seconds + 1)
+
                         if response.status == 200:
                             data = await response.json()
                             for item in data.get('items', [])[:5]:  # Top 5 results per query
@@ -260,12 +271,12 @@ class AdvancedReconModule:
                                     'url': item.get('html_url'),
                                     'query': query
                                 })
-                
-                await asyncio.sleep(1)  # Rate limiting
-        
+
+                await asyncio.sleep(1)  # Rate limiting between queries
+
         except Exception as e:
             return {'error': str(e)}
-        
+
         return {
             'total_findings': len(findings),
             'repositories': findings,
@@ -275,15 +286,15 @@ class AdvancedReconModule:
     async def haveibeenpwned_check(self) -> Dict:
         """Check for email breaches on HaveIBeenPwned"""
         print(f"[*] Checking breach databases")
-        
+
         # Extract emails from WHOIS
         emails = self.results.get('whois', {}).get('emails', [])
-        
+
         if not emails:
             return {'error': 'No emails found to check'}
-        
+
         breach_data = {}
-        
+
         for email in emails[:5]:  # Check first 5 emails
             try:
                 url = f"https://haveibeenpwned.com/api/v3/breachedaccount/{email}"
@@ -291,7 +302,7 @@ class AdvancedReconModule:
                     'hibp-api-key': self.config.hibp_key or '',
                     'User-Agent': 'Hughes-Clues-OSINT'
                 }
-                
+
                 if self.session:
                     async with self.session.get(url, headers=headers, timeout=self.timeout) as response:
                         if response.status == 200:
@@ -310,12 +321,13 @@ class AdvancedReconModule:
                             }
                         elif response.status == 404:
                             breach_data[email] = {'breached': False}
-                
-                await asyncio.sleep(1.5)  # HIBP rate limiting
-                
+
             except Exception as e:
                 breach_data[email] = {'error': str(e)}
-        
+            finally:
+                # Rate limiting applied regardless of success or failure
+                await asyncio.sleep(1.5)
+
         return breach_data
     
     async def cloud_asset_discovery(self) -> Dict:
@@ -344,7 +356,7 @@ class AdvancedReconModule:
         for bucket_name in s3_patterns:
             try:
                 url = f"https://{bucket_name}.s3.amazonaws.com"
-                
+
                 if self.session:
                     async with self.session.head(url, timeout=5) as response:
                         if response.status in [200, 403]:  # 403 means exists but private
@@ -354,7 +366,7 @@ class AdvancedReconModule:
                                 'status': 'PUBLIC' if response.status == 200 else 'PRIVATE',
                                 'accessible': response.status == 200
                             })
-            except:
+            except Exception:
                 continue
         
         return {
