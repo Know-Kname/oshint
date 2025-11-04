@@ -12,12 +12,12 @@ enable_uvloop: true
 
 # API Keys (fill in your keys)
 api_keys:
-  shodan_key: ""
-  censys_id: ""
-  censys_secret: ""
-  virustotal_key: ""
-  securitytrails_key: ""
-  urlscan_key: ""
+  shodan_key: "DiRn2m6masjvZFgsOUV3db96LDLJYSsx"
+  censys_id: "JTCU4bL7"
+  censys_secret: "censys_JTCU4bL7_DQEmsjc9Sgi7dLr75rq2VtoH"
+  virustotal_key: "706bcf8535dd0434922e9265ffcfb749251b1f4528c524c2324e92726ba9b85b"
+  securitytrails_key: "f90_-9PpV7lx2SVz150MC_D2MGaavl5D"
+  urlscan_key: "019a50c9-42fb-7509-b186-fc7d26977b31"
   hibp_key: ""
 
 # Analysis Configuration
