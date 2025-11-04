@@ -433,6 +433,132 @@ OSINT Intelligence Gathering Framework
             self.show_status(f"Error: {str(e)}", "error")
             return None
 
+    async def execute_darkweb(self, target: str):
+        """Execute dark web monitoring"""
+        try:
+            from elite_darkweb_monitor import EliteDarkWebMonitor
+
+            self.show_status(f"Starting dark web monitoring for {target}", "info")
+
+            monitor = EliteDarkWebMonitor()
+
+            if not await monitor.initialize():
+                self.show_status("Failed to initialize Tor connection", "error")
+                return None
+
+            # Monitor for target
+            await monitor.discover_onion_sites([target], max_depth=1)
+            await monitor.monitor_paste_sites([target])
+
+            intel = monitor.intel
+            self.show_status(f"Dark web monitoring complete", "success")
+            self.show_status(f"Sites monitored: {intel.sites_monitored}", "info")
+
+            results = {
+                'target': target,
+                'sites_monitored': intel.sites_monitored,
+                'new_sites_discovered': intel.new_sites_discovered,
+                'paste_entries': intel.paste_entries
+            }
+
+            self.results[f"{target}_darkweb"] = results
+            return results
+
+        except Exception as e:
+            self.show_status(f"Error: {str(e)}", "error")
+            return None
+
+    async def execute_scraping(self, target: str):
+        """Execute web scraping"""
+        try:
+            from elite_web_scraper import EliteWebScraper, ScraperConfig
+
+            self.show_status(f"Starting web scraping for {target}", "info")
+
+            config = ScraperConfig(
+                headless=True,
+                max_depth=2,
+                user_agent_rotation=True,
+                javascript_enabled=True,
+                stealth_mode=True
+            )
+
+            scraper = EliteWebScraper(config)
+            await scraper.initialize()
+
+            # Crawl target
+            url = f"https://{target}" if not target.startswith('http') else target
+            await scraper.crawl_recursive(url, 2)
+
+            self.show_status(f"Web scraping complete", "success")
+            self.show_status(f"URLs visited: {len(scraper.visited_urls)}", "info")
+            self.show_status(f"Data points collected: {len(scraper.scraped_data)}", "info")
+
+            results = {
+                'target': target,
+                'urls_visited': len(scraper.visited_urls),
+                'data_points': len(scraper.scraped_data),
+                'visited_urls': scraper.visited_urls[:10]  # First 10
+            }
+
+            self.results[f"{target}_scraping"] = results
+            await scraper.cleanup()
+            return results
+
+        except Exception as e:
+            self.show_status(f"Error: {str(e)}", "error")
+            return None
+
+    async def execute_geolocation(self, target: str):
+        """Execute geolocation intelligence"""
+        try:
+            from elite_geolocation_intel import EliteGeolocationIntel
+
+            self.show_status(f"Starting geolocation intelligence for {target}", "info")
+
+            geo = EliteGeolocationIntel()
+            results = await geo.analyze_target(target)
+
+            self.show_status(f"Geolocation analysis complete", "success")
+
+            if results.get('ip_geolocation'):
+                geo_info = results['ip_geolocation']
+                self.show_status(f"Location: {geo_info.get('country', 'Unknown')}", "info")
+
+            self.results[f"{target}_geolocation"] = results
+            return results
+
+        except Exception as e:
+            self.show_status(f"Error: {str(e)}", "error")
+            return None
+
+    async def execute_analysis(self, target: str):
+        """Execute analysis engine"""
+        try:
+            from elite_analysis_engine import EliteAnalysisEngine
+
+            self.show_status(f"Starting analysis for {target}", "info")
+
+            # First get reconnaissance data
+            from elite_recon_module import AdvancedReconModule, APIConfig
+            config = APIConfig.from_file(self.config_file)
+            recon = AdvancedReconModule(target, config=config)
+            recon_results = await recon.run_full_recon_async()
+
+            # Analyze results
+            analyzer = EliteAnalysisEngine()
+            analysis = analyzer.analyze_intelligence(recon_results)
+
+            self.show_status(f"Analysis complete", "success")
+            self.show_status(f"Risk score: {analysis.get('overall_risk', 0)}/100", "info")
+
+            self.results[f"{target}_analysis"] = analysis
+            return analysis
+
+        except Exception as e:
+            self.show_status(f"Error: {str(e)}", "error")
+            return None
+
     def display_recon_results(self, results: Dict):
         """Display reconnaissance results"""
         if not results:
@@ -677,6 +803,26 @@ OSINT Intelligence Gathering Framework
             elif choice == "2":  # Credential Harvest
                 target = self.get_target()
                 asyncio.run(self.execute_credential_harvest(target))
+
+            elif choice == "3":  # Dark Web Monitoring
+                self.show_status("Dark Web Monitoring module", "info")
+                target = self.get_target()
+                asyncio.run(self.execute_darkweb(target))
+
+            elif choice == "4":  # Web Scraping
+                self.show_status("Web Scraping module", "info")
+                target = self.get_target()
+                asyncio.run(self.execute_scraping(target))
+
+            elif choice == "5":  # Geolocation
+                self.show_status("Geolocation Intelligence module", "info")
+                target = self.get_target()
+                asyncio.run(self.execute_geolocation(target))
+
+            elif choice == "6":  # Analysis
+                self.show_status("Analysis Engine module", "info")
+                target = self.get_target()
+                asyncio.run(self.execute_analysis(target))
 
             elif choice == "7":  # Full Pipeline
                 target = self.get_target()
