@@ -108,30 +108,65 @@ class ModuleLoader:
         self.loaded_modules: Dict[str, Any] = {}
         
     def load_module(self, module_name: str) -> Any:
-        """Load a module dynamically"""
-        
+        """Load a module dynamically from multiple possible locations"""
+
+        # Check if already loaded
         if module_name in self.loaded_modules:
+            logger.debug(f"[+] Using cached module: {module_name}")
             return self.loaded_modules[module_name]
-        
-        module_path = self.modules_dir / f"{module_name}.py"
-        
-        if not module_path.exists():
-            logger.error(f"[!] Module not found: {module_path}")
-            return None
-        
+
+        # Try multiple locations for maximum flexibility
+        candidates = [
+            # Current directory (development)
+            Path(f"{module_name}.py"),
+            # App directory (Docker)
+            Path(f"/app/{module_name}.py"),
+            # Modules subdirectory
+            self.modules_dir / f"{module_name}.py",
+            # Relative to script location
+            Path(__file__).parent / f"{module_name}.py",
+        ]
+
+        module_path = None
+        for candidate in candidates:
+            if candidate.exists():
+                module_path = candidate
+                logger.debug(f"[+] Found module at: {module_path}")
+                break
+
+        # If not found in filesystem, try direct Python import
+        if module_path is None:
+            try:
+                logger.debug(f"[*] Attempting direct import of {module_name}")
+                module = __import__(module_name)
+                self.loaded_modules[module_name] = module
+                logger.info(f"[+] Loaded module via import: {module_name}")
+                return module
+            except ImportError:
+                logger.error(f"[!] Module not found in any location: {module_name}")
+                logger.debug(f"[!] Searched locations: {', '.join(str(c) for c in candidates)}")
+                return None
+
+        # Load from file
         try:
+            logger.debug(f"[*] Loading module from file: {module_path}")
             spec = importlib.util.spec_from_file_location(module_name, module_path)
+            if spec is None or spec.loader is None:
+                logger.error(f"[!] Could not create loader for {module_name}")
+                return None
+
             module = importlib.util.module_from_spec(spec)
             sys.modules[module_name] = module
             spec.loader.exec_module(module)
-            
+
             self.loaded_modules[module_name] = module
-            logger.info(f"[+] Loaded module: {module_name}")
-            
+            logger.info(f"[+] Loaded module: {module_name} from {module_path}")
+
             return module
-            
+
         except Exception as e:
             logger.error(f"[!] Failed to load module {module_name}: {str(e)}")
+            logger.debug(f"[!] Exception details: {type(e).__name__}: {str(e)}")
             return None
 
 
@@ -212,7 +247,17 @@ class MasterOrchestrator:
 
         # Load configuration
         self.config = self.load_config(config_file)
-        
+
+        # Validate configuration
+        try:
+            from config_validator import ConfigValidator
+            if not ConfigValidator.validate_on_startup(self.config):
+                logger.warning("[!] Configuration validation found issues, but continuing anyway")
+        except ImportError:
+            logger.warning("[!] ConfigValidator not available, skipping validation")
+        except Exception as e:
+            logger.warning(f"[!] Configuration validation error: {str(e)}")
+
         # Module loader
         self.module_loader = ModuleLoader()
         

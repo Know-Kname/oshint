@@ -214,8 +214,9 @@ class IPGeolocationEngine:
         try:
             intel.reverse_dns = socket.gethostbyaddr(ip)[0]
             logger.info(f"[+] Reverse DNS: {intel.reverse_dns}")
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"[!] Reverse DNS lookup failed for {ip}: {str(e)}")
+            intel.reverse_dns = None
         
         # Calculate threat level
         if intel.is_tor or (intel.is_proxy and intel.is_vpn):
@@ -226,40 +227,72 @@ class IPGeolocationEngine:
         return intel
     
     async def trace_route(self, target: str) -> List[Dict]:
-        """Trace route to target and geolocate each hop"""
+        """Trace route to target asynchronously without blocking event loop"""
         logger.info(f"[*] Tracing route to {target}")
-        
-        # This is a simplified version - full implementation would use scapy
-        import subprocess
-        
+
+        import asyncio
+        import os
+
         try:
-            result = subprocess.run(
-                ['traceroute', '-n', '-m', '30', target],
-                capture_output=True,
-                text=True,
-                timeout=60
+            # Determine correct command based on OS
+            cmd = 'tracert' if os.name == 'nt' else 'traceroute'
+            cmd_args = [cmd, target]
+            if os.name != 'nt':  # Linux/Mac specific args
+                cmd_args.extend(['-n', '-m', '30'])
+
+            # Run asynchronously without blocking event loop
+            proc = await asyncio.create_subprocess_exec(
+                *cmd_args,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
             )
-            
+
+            # Wait for process with timeout
+            try:
+                stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                    proc.communicate(),
+                    timeout=30.0
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"[!] Traceroute timeout for {target}")
+                return []
+
+            if proc.returncode != 0:
+                logger.warning(f"[!] Traceroute failed: {stderr_bytes.decode()}")
+                return []
+
+            # Parse output
+            output = stdout_bytes.decode()
             hops = []
-            for line in result.stdout.split('\n'):
-                # Parse traceroute output
+
+            for line in output.split('\n'):
+                # Parse traceroute output for IP addresses
                 match = re.search(r'(\d+\.\d+\.\d+\.\d+)', line)
                 if match:
                     hop_ip = match.group(1)
                     if hop_ip != '* * *':
-                        intel = await self.geolocate_ip_multi_source(hop_ip)
-                        hops.append({
-                            'hop': len(hops) + 1,
-                            'ip': hop_ip,
-                            'location': intel.location,
-                            'isp': intel.isp
-                        })
-            
-            logger.info(f"[+] Traced {len(hops)} hops")
+                        try:
+                            intel = await self.geolocate_ip_multi_source(hop_ip)
+                            hops.append({
+                                'hop': len(hops) + 1,
+                                'ip': hop_ip,
+                                'location': intel.location if intel else 'Unknown',
+                                'isp': intel.isp if intel else 'Unknown'
+                            })
+                        except Exception as e:
+                            logger.debug(f"[!] Failed to geolocate hop {hop_ip}: {str(e)}")
+                            hops.append({
+                                'hop': len(hops) + 1,
+                                'ip': hop_ip,
+                                'location': 'Unknown',
+                                'isp': 'Unknown'
+                            })
+
+            logger.info(f"[+] Traced {len(hops)} hops to {target}")
             return hops
-            
+
         except Exception as e:
-            logger.error(f"[!] Traceroute error: {str(e)}")
+            logger.error(f"[!] Traceroute failed for {target}: {str(e)}")
             return []
 
 
@@ -534,8 +567,8 @@ class GeoIntelligenceFusion:
                 fused_location.address = address.address
                 fused_location.city = address.raw.get('address', {}).get('city')
                 fused_location.country = address.raw.get('address', {}).get('country')
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"[!] Reverse geocoding failed for {avg_lat}, {avg_lon}: {str(e)}")
         
         logger.info(f"[+] Fused location: {avg_lat}, {avg_lon} (accuracy: {max_distance:.0f}m)")
         return fused_location
