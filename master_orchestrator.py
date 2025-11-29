@@ -48,6 +48,7 @@ class OperationType(Enum):
     NETWORK_EXPLOIT = "network_exploit"
     DARK_WEB = "dark_web"
     SELF_IMPROVE = "self_improve"
+    PEOPLE_INTELLIGENCE = "people_intelligence"
 
 
 class OperationStatus(Enum):

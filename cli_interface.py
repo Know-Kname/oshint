@@ -36,9 +36,10 @@ class MenuOption(Enum):
     WEB_SCRAPING = "4"
     GEOLOCATION = "5"
     ANALYSIS = "6"
-    FULL_PIPELINE = "7"
-    VIEW_RESULTS = "8"
-    SETTINGS = "9"
+    PEOPLE_INTELLIGENCE = "7"
+    FULL_PIPELINE = "8"
+    VIEW_RESULTS = "9"
+    SETTINGS = "10"
     EXIT = "0"
 
 
@@ -95,9 +96,10 @@ OSINT Intelligence Gathering Framework
             table.add_row("[4]", "🕷️   Web Scraping")
             table.add_row("[5]", "📍  Geolocation Intelligence")
             table.add_row("[6]", "📊  Analysis Engine")
-            table.add_row("[7]", "⚡  Full Intelligence Pipeline")
-            table.add_row("[8]", "📈  View Results")
-            table.add_row("[9]", "⚙️   Settings")
+            table.add_row("[7]", "👤  People Intelligence (PEOPLEINT)")
+            table.add_row("[8]", "⚡  Full Intelligence Pipeline")
+            table.add_row("[9]", "📈  View Results")
+            table.add_row("[10]", "⚙️   Settings")
             table.add_row("[0]", "❌  Exit")
 
             console.print(table)
@@ -110,16 +112,17 @@ OSINT Intelligence Gathering Framework
             print("[4] Web Scraping")
             print("[5] Geolocation Intelligence")
             print("[6] Analysis Engine")
-            print("[7] Full Intelligence Pipeline")
-            print("[8] View Results")
-            print("[9] Settings")
+            print("[7] People Intelligence (PEOPLEINT)")
+            print("[8] Full Intelligence Pipeline")
+            print("[9] View Results")
+            print("[10] Settings")
             print("[0] Exit")
             print()
 
         if HAS_RICH:
-            choice = Prompt.ask("Select option", choices=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"])
+            choice = Prompt.ask("Select option", choices=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])
         else:
-            choice = input("Select option (0-9): ").strip()
+            choice = input("Select option (0-10): ").strip()
 
         return choice
 
