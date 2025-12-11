@@ -36,9 +36,10 @@ class MenuOption(Enum):
     WEB_SCRAPING = "4"
     GEOLOCATION = "5"
     ANALYSIS = "6"
-    FULL_PIPELINE = "7"
-    VIEW_RESULTS = "8"
-    SETTINGS = "9"
+    PEOPLE_INTELLIGENCE = "7"
+    FULL_PIPELINE = "8"
+    VIEW_RESULTS = "9"
+    SETTINGS = "10"
     EXIT = "0"
 
 
@@ -95,9 +96,10 @@ OSINT Intelligence Gathering Framework
             table.add_row("[4]", "🕷️   Web Scraping")
             table.add_row("[5]", "📍  Geolocation Intelligence")
             table.add_row("[6]", "📊  Analysis Engine")
-            table.add_row("[7]", "⚡  Full Intelligence Pipeline")
-            table.add_row("[8]", "📈  View Results")
-            table.add_row("[9]", "⚙️   Settings")
+            table.add_row("[7]", "👤  People Intelligence (PEOPLEINT)")
+            table.add_row("[8]", "⚡  Full Intelligence Pipeline")
+            table.add_row("[9]", "📈  View Results")
+            table.add_row("[10]", "⚙️   Settings")
             table.add_row("[0]", "❌  Exit")
 
             console.print(table)
@@ -110,16 +112,17 @@ OSINT Intelligence Gathering Framework
             print("[4] Web Scraping")
             print("[5] Geolocation Intelligence")
             print("[6] Analysis Engine")
-            print("[7] Full Intelligence Pipeline")
-            print("[8] View Results")
-            print("[9] Settings")
+            print("[7] People Intelligence (PEOPLEINT)")
+            print("[8] Full Intelligence Pipeline")
+            print("[9] View Results")
+            print("[10] Settings")
             print("[0] Exit")
             print()
 
         if HAS_RICH:
-            choice = Prompt.ask("Select option", choices=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"])
+            choice = Prompt.ask("Select option", choices=["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])
         else:
-            choice = input("Select option (0-9): ").strip()
+            choice = input("Select option (0-10): ").strip()
 
         return choice
 
@@ -786,57 +789,60 @@ OSINT Intelligence Gathering Framework
         print()
 
     def main_loop(self):
-        """Main CLI loop"""
+        """Main CLI loop with enhanced handler"""
+        from cli_menu_handler import EnhancedCLIHandler
+
         self.print_banner()
+        handler = EnhancedCLIHandler(self)
 
         while True:
             choice = self.show_main_menu()
 
-            if choice == "0":  # Exit
-                self.show_status("Goodbye!", "info")
-                break
+            try:
+                if choice == "0":  # Exit
+                    self.show_status("Goodbye!", "info")
+                    break
 
-            elif choice == "1":  # Reconnaissance
-                target = self.get_target()
-                asyncio.run(self.execute_recon(target))
+                elif choice == "1":  # Reconnaissance
+                    asyncio.run(handler.handle_reconnaissance())
 
-            elif choice == "2":  # Credential Harvest
-                target = self.get_target()
-                asyncio.run(self.execute_credential_harvest(target))
+                elif choice == "2":  # Credential Harvest
+                    asyncio.run(handler.handle_credential_harvest())
 
-            elif choice == "3":  # Dark Web Monitoring
-                self.show_status("Dark Web Monitoring module", "info")
-                target = self.get_target()
-                asyncio.run(self.execute_darkweb(target))
+                elif choice == "3":  # Dark Web Monitoring
+                    asyncio.run(handler.handle_dark_web_monitor())
 
-            elif choice == "4":  # Web Scraping
-                self.show_status("Web Scraping module", "info")
-                target = self.get_target()
-                asyncio.run(self.execute_scraping(target))
+                elif choice == "4":  # Web Scraping
+                    asyncio.run(handler.handle_web_scraping())
 
-            elif choice == "5":  # Geolocation
-                self.show_status("Geolocation Intelligence module", "info")
-                target = self.get_target()
-                asyncio.run(self.execute_geolocation(target))
+                elif choice == "5":  # Geolocation
+                    asyncio.run(handler.handle_geolocation())
 
-            elif choice == "6":  # Analysis
-                self.show_status("Analysis Engine module", "info")
-                target = self.get_target()
-                asyncio.run(self.execute_analysis(target))
+                elif choice == "6":  # Analysis
+                    asyncio.run(handler.handle_analysis())
 
-            elif choice == "7":  # Full Pipeline
-                target = self.get_target()
-                operations = ['1', '2', '3', '4']  # All operations
-                asyncio.run(self.execute_orchestrator(target, operations))
+                elif choice == "7":  # People Intelligence (NEW)
+                    asyncio.run(handler.handle_people_intelligence())
 
-            elif choice == "8":  # View Results
-                self.show_results_menu()
+                elif choice == "8":  # Full Pipeline
+                    asyncio.run(handler.handle_full_pipeline())
 
-            elif choice == "9":  # Settings
-                self.show_settings_menu()
+                elif choice == "9":  # View Results
+                    handler.handle_view_results()
 
-            else:
-                self.show_status("Invalid option. Please try again.", "warning")
+                elif choice == "10":  # Settings
+                    handler.handle_settings()
+
+                else:
+                    self.show_status("Invalid option. Please try again.", "warning")
+
+            except KeyboardInterrupt:
+                self.show_status("\nOperation cancelled by user", "warning")
+            except Exception as e:
+                self.show_status(f"Error: {str(e)}", "error")
+                import traceback
+                if os.getenv('DEBUG'):
+                    traceback.print_exc()
 
             print()  # Blank line for spacing
 

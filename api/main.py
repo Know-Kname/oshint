@@ -216,6 +216,208 @@ async def list_targets():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/people/search-by-name")
+async def search_person_by_name(full_name: str, city: str = None, state: str = None):
+    """
+    Search for person by name and optional location
+
+    Args:
+        full_name: Full name of person
+        city: Optional city
+        state: Optional state
+
+    Returns:
+        Person profile with collected information
+    """
+    try:
+        # Import here to avoid circular dependencies
+        from elite_people_intel import PeopleIntelligence
+
+        intel = PeopleIntelligence()
+        profile = await intel.search_by_name(full_name, city, state)
+        await intel.close_session()
+
+        return {
+            "status": "success",
+            "profile": {
+                "full_name": profile.full_name,
+                "age": profile.age,
+                "location": f"{profile.current_city or ''}, {profile.current_state or ''}".strip(', '),
+                "phone_numbers": profile.phone_numbers,
+                "email_addresses": profile.email_addresses,
+                "social_media": profile.social_media,
+                "confidence_score": profile.confidence_score,
+                "sources": profile.sources
+            }
+        }
+    except Exception as e:
+        logger.error(f"[!] People search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/people/search-by-phone")
+async def search_person_by_phone(phone_number: str):
+    """
+    Search for person by phone number
+
+    Args:
+        phone_number: Phone number in any format
+
+    Returns:
+        Person profile
+    """
+    try:
+        from elite_people_intel import PeopleIntelligence
+
+        intel = PeopleIntelligence()
+        profile = await intel.search_by_phone(phone_number)
+        await intel.close_session()
+
+        return {
+            "status": "success",
+            "profile": {
+                "full_name": profile.full_name,
+                "phone_numbers": profile.phone_numbers,
+                "email_addresses": profile.email_addresses,
+                "location": f"{profile.current_city or ''}, {profile.current_state or ''}".strip(', '),
+                "confidence_score": profile.confidence_score,
+                "sources": profile.sources
+            }
+        }
+    except Exception as e:
+        logger.error(f"[!] Phone search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/people/search-by-email")
+async def search_person_by_email(email: str):
+    """
+    Search for person by email address
+
+    Args:
+        email: Email address
+
+    Returns:
+        Person profile
+    """
+    try:
+        from elite_people_intel import PeopleIntelligence
+
+        intel = PeopleIntelligence()
+        profile = await intel.search_by_email(email)
+        await intel.close_session()
+
+        return {
+            "status": "success",
+            "profile": {
+                "full_name": profile.full_name,
+                "email_addresses": profile.email_addresses,
+                "social_media": profile.social_media,
+                "data_breaches": profile.data_breaches,
+                "confidence_score": profile.confidence_score,
+                "sources": profile.sources
+            }
+        }
+    except Exception as e:
+        logger.error(f"[!] Email search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/people/search-by-username")
+async def search_person_by_username(username: str):
+    """
+    Search for person by username across platforms
+
+    Args:
+        username: Username to search
+
+    Returns:
+        Person profile with found accounts
+    """
+    try:
+        from elite_people_intel import PeopleIntelligence
+
+        intel = PeopleIntelligence()
+        profile = await intel.search_by_username(username)
+        await intel.close_session()
+
+        return {
+            "status": "success",
+            "profile": {
+                "username": username,
+                "social_media": profile.social_media,
+                "usernames": list(profile.usernames),
+                "sources": profile.sources
+            }
+        }
+    except Exception as e:
+        logger.error(f"[!] Username search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/people/search-comprehensive")
+async def search_person_comprehensive(
+    name: str = None,
+    phone: str = None,
+    email: str = None,
+    username: str = None,
+    city: str = None,
+    state: str = None
+):
+    """
+    Comprehensive search using all available identifiers
+
+    Args:
+        name: Full name
+        phone: Phone number
+        email: Email address
+        username: Username
+        city: City
+        state: State
+
+    Returns:
+        Aggregated person profile
+    """
+    try:
+        from elite_people_intel import PeopleIntelligence
+
+        intel = PeopleIntelligence()
+        profile = await intel.search_comprehensive(
+            name=name,
+            phone=phone,
+            email=email,
+            username=username,
+            city=city,
+            state=state
+        )
+        await intel.close_session()
+
+        # Generate report
+        report_text = intel.generate_report(profile, format='text')
+
+        return {
+            "status": "success",
+            "profile": {
+                "full_name": profile.full_name,
+                "age": profile.age,
+                "date_of_birth": profile.date_of_birth,
+                "current_location": f"{profile.current_city or ''}, {profile.current_state or ''}".strip(', '),
+                "phone_numbers": profile.phone_numbers,
+                "email_addresses": profile.email_addresses,
+                "social_media": profile.social_media,
+                "employers": profile.employers,
+                "education": profile.education,
+                "data_breaches": profile.data_breaches,
+                "confidence_score": profile.confidence_score,
+                "sources": profile.sources
+            },
+            "report": report_text
+        }
+    except Exception as e:
+        logger.error(f"[!] Comprehensive search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -229,6 +431,11 @@ async def root():
             "reconnaissance": "/intelligence/reconnaissance (POST)",
             "full_pipeline": "/intelligence/full-pipeline (POST)",
             "targets": "/targets (GET)",
+            "people_search_by_name": "/people/search-by-name (POST)",
+            "people_search_by_phone": "/people/search-by-phone (POST)",
+            "people_search_by_email": "/people/search-by-email (POST)",
+            "people_search_by_username": "/people/search-by-username (POST)",
+            "people_search_comprehensive": "/people/search-comprehensive (POST)",
         }
     }
 
