@@ -1,0 +1,114 @@
+# Windows-Compatible Requirements for Python 3.11-3.13
+# Optimized for Windows installation
+# Note: Some packages may require Visual C++ Build Tools
+
+# HTTP and Async
+aiohttp~=3.9.3
+requests~=2.31.0
+httpx~=0.26.0
+
+# Web Scraping & Processing
+beautifulsoup4~=4.12.0
+selenium~=4.16.0
+lxml~=5.1.0
+playwright~=1.40.0
+scrapy~=2.11.0
+# undetected-chromedriver>=3.5.0  # Optional - uncomment if needed
+
+# DNS & Network
+dnspython~=2.4.2
+python-whois~=0.8.0
+aiodns~=3.1.1
+netaddr~=0.9.0
+
+# Credentials & Hashing
+bcrypt~=4.1.2
+passlib~=1.7.4
+paramiko~=3.4.0
+asyncssh~=2.14.2
+cryptography~=42.0.2  # SECURITY FIX - CVE-2023-50782
+
+# Database
+pymongo~=4.6.1
+motor~=3.3.2
+redis~=5.0.1  # Replaces deprecated aioredis
+# Note: redis>=5.0.0 includes async support, no need for aioredis
+
+# Data Processing & Analysis
+pandas~=2.1.4
+numpy~=1.26.3
+scipy~=1.11.4
+scikit-learn~=1.3.2
+
+# Machine Learning & AI (Optional - Large downloads)
+# torch>=2.0.0  # Uncomment if needed - 2GB+ download
+# transformers>=4.36.0  # Uncomment if needed
+# spacy>=3.7.0  # Uncomment if needed
+anthropic~=0.8.0
+openai~=1.6.1
+
+# Computer Vision (Optional - face_recognition has C++ dependencies)
+opencv-python~=4.9.0.80
+# face_recognition~=1.3.0  # OPTIONAL - Requires CMake and Visual C++ Build Tools
+# dlib~=19.24.0  # OPTIONAL - Required by face_recognition, needs compilation
+
+# Visualization & Graphs
+networkx~=3.2.1
+matplotlib~=3.8.2
+
+# Geolocation
+geoip2~=4.7.0
+
+# Performance & Async
+aiofiles~=23.2.1
+psutil~=5.9.6
+
+# System & Network
+pysmb~=1.2.9
+pysocks~=1.7.1
+stem~=1.8.0
+
+# Code Analysis
+astor~=0.8.1
+GitPython~=3.1.41
+# docker>=6.1.0  # May not work on Windows without Docker Desktop
+
+# Utilities & UI
+tqdm~=4.66.1
+colorama~=0.4.6
+pyyaml~=6.0.1
+python-dateutil~=2.8.2
+fake-useragent~=1.4.0
+rich~=13.7.0
+# python-magic>=0.4.27  # Difficult on Windows - use python-magic-bin instead
+python-magic-bin~=0.4.14  # Windows-compatible version
+
+# Configuration Management
+python-dotenv~=1.0.0
+
+# Security Tools
+bandit~=1.7.6
+safety~=3.0.1
+
+# Development & Testing
+pytest~=7.4.3
+pytest-asyncio~=0.21.1
+black~=23.12.1
+# mypy>=1.7.0  # Optional
+# pylint>=3.0.0  # Optional
+
+# FastAPI (for API server)
+fastapi~=0.108.0
+uvicorn~=0.25.0
+pydantic~=2.5.3
+
+# Elasticsearch & Search
+elasticsearch~=8.11.1
+
+# Neo4j Graph Database
+neo4j~=5.15.0
+
+# Additional Utilities
+shodan~=1.31.0
+censys~=2.2.9
+virustotal-api~=1.1.11
