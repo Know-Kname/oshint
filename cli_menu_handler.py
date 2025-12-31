@@ -44,7 +44,20 @@ class EnhancedCLIHandler:
         try:
             if os.path.exists(self.cli.config_file):
                 with open(self.cli.config_file) as f:
-                    return yaml.safe_load(f)
+                    config = yaml.safe_load(f)
+                    # yaml.safe_load() returns None for empty files
+                    if config is None:
+                        logger.warning(f"Config file is empty: {self.cli.config_file}")
+                        return {}
+                    if not isinstance(config, dict):
+                        logger.error(f"Config file is not a valid YAML dict: {self.cli.config_file}")
+                        return {}
+                    return config
+            else:
+                logger.info(f"Config file not found: {self.cli.config_file}, using defaults")
+            return {}
+        except yaml.YAMLError as e:
+            logger.error(f"YAML syntax error in config: {str(e)}")
             return {}
         except Exception as e:
             logger.error(f"Error loading config: {str(e)}")

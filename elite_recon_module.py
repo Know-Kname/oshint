@@ -136,7 +136,8 @@ class AdvancedReconModule:
             ip = socket.gethostbyname(self.target)
             reverse_dns = socket.gethostbyaddr(ip)
             dns_results['reverse'] = reverse_dns[0]
-        except:
+        except Exception as e:
+            logger.debug(f"Reverse DNS lookup failed: {str(e)}")
             dns_results['reverse'] = None
         
         return dns_results

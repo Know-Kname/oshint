@@ -454,7 +454,8 @@ class GraphIntelligenceEngine:
                 reverse=True
             )[:top_n]
             return top_entities
-        except:
+        except Exception as e:
+            logger.warning(f"Graph centrality calculation failed: {str(e)}")
             return []
     
     def detect_communities(self) -> List[Set[str]]:
@@ -463,7 +464,8 @@ class GraphIntelligenceEngine:
             undirected = self.graph.to_undirected()
             communities = list(nx.community.greedy_modularity_communities(undirected))
             return communities
-        except:
+        except Exception as e:
+            logger.warning(f"Community detection failed: {str(e)}")
             return []
     
     def visualize_graph(self, output_file: str = "graph.png"):

@@ -248,7 +248,8 @@ class StealthBrowser:
             if random.random() > 0.7:
                 await self.page.evaluate("window.scrollTo(0, 0)")
                 await asyncio.sleep(random.uniform(0.5, 1))
-        except:
+        except Exception as e:
+            logger.debug(f"Scroll simulation error (non-critical): {str(e)}")
             pass
     
     async def extract_javascript_data(self) -> Dict:
@@ -403,7 +404,8 @@ class SocialMediaScraper:
                     if '@type' in data and data['@type'] == 'ProfilePage':
                         profile_data = data
                         break
-                except:
+                except Exception as e:
+                    logger.debug(f"JSON parsing error in script tag: {str(e)}")
                     continue
             
             return {
@@ -453,7 +455,8 @@ class EliteWebScraper:
             data = self.redis.get(self.get_cache_key(url))
             if data:
                 return pickle.loads(data)
-        except:
+        except Exception as e:
+            logger.warning(f"Cache get error for {url}: {str(e)}")
             pass
         return None
     
@@ -465,7 +468,8 @@ class EliteWebScraper:
                 ttl,
                 pickle.dumps(data)
             )
-        except:
+        except Exception as e:
+            logger.warning(f"Cache set error for {url}: {str(e)}")
             pass
     
     async def scrape_url(self, url: str, depth: int = 0) -> Dict:

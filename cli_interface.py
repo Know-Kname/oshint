@@ -8,6 +8,8 @@ import os
 import sys
 import asyncio
 import json
+import re
+import ipaddress
 from typing import Dict, List, Optional, Callable
 from enum import Enum
 from datetime import datetime
@@ -51,6 +53,41 @@ class HughesCLI:
         self.target = None
         self.results = {}
         self.history = []
+
+    def _is_valid_target(self, target: str) -> bool:
+        """
+        Validate target is a valid domain or IP address
+
+        Args:
+            target: Target string to validate
+
+        Returns:
+            bool: True if valid domain or IP
+        """
+        if not target or not target.strip():
+            return False
+
+        target = target.strip()
+
+        # Check if valid IPv4 or IPv6
+        try:
+            ipaddress.ip_address(target)
+            return True
+        except ValueError:
+            pass
+
+        # Check if valid domain name
+        # Domain regex: alphanumeric with hyphens, dots, ending with TLD
+        domain_pattern = r'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$'
+        if re.match(domain_pattern, target):
+            return True
+
+        # Check if valid hostname (single word, no TLD - for local/internal)
+        hostname_pattern = r'^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$'
+        if re.match(hostname_pattern, target):
+            return True
+
+        return False
 
     def _find_config(self) -> str:
         """Find configuration file"""
@@ -127,14 +164,20 @@ OSINT Intelligence Gathering Framework
         return choice
 
     def get_target(self) -> str:
-        """Get target for reconnaissance"""
+        """Get target for reconnaissance with validation"""
         if HAS_RICH:
             target = Prompt.ask("Enter target domain or IP")
         else:
             target = input("Enter target domain or IP: ").strip()
 
         if not target:
-            console.print("[red]Error: Target cannot be empty[/red]") if HAS_RICH else print("Error: Target cannot be empty")
+            self.show_status("Target cannot be empty", "error")
+            return self.get_target()
+
+        # Validate target format
+        if not self._is_valid_target(target):
+            self.show_status(f"Invalid target format: {target}", "error")
+            self.show_status("Please enter a valid domain name or IP address", "warning")
             return self.get_target()
 
         self.target = target

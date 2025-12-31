@@ -515,9 +515,9 @@ class EliteSelfImprovementEngine:
         try:
             self.repo = git.Repo(repo_path)
             logger.info("[+] Git repository initialized")
-        except:
+        except Exception as e:
             self.repo = None
-            logger.warning("[!] Git repository not found")
+            logger.warning(f"[!] Git repository not found: {str(e)}")
         
         # Storage
         self.mongo_client = MongoClient('mongodb://localhost:27017')
