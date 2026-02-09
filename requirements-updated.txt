@@ -49,7 +49,7 @@ face_recognition~=1.3.0
 
 # Visualization & Graphs
 networkx~=3.2.1  # Updated from >=3.0
-matplotlib~=3.8.2  # Updated from >=3.8.0
+matplotlib~=3.10.8  # Updated from >=3.8.0
 
 # Geolocation
 geoip2~=4.8.0  # Updated from >=4.7.0
