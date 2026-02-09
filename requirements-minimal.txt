@@ -1,0 +1,57 @@
+# Minimal Core Requirements for Python 3.13
+# Pre-built wheels only - no compilation required
+# This gets the app running quickly on Windows
+
+# HTTP and Async (REQUIRED)
+aiohttp>=3.9.3
+requests>=2.31.0
+httpx>=0.26.0
+
+# Web Scraping (REQUIRED)
+beautifulsoup4>=4.12.0
+lxml>=5.1.0
+
+# DNS & Network (REQUIRED)
+dnspython>=2.4.2
+aiodns>=3.1.1
+netaddr>=0.9.0
+
+# Security & Crypto (REQUIRED)
+bcrypt>=4.1.2
+cryptography>=42.0.2
+paramiko>=3.4.0
+
+# Database (REQUIRED)
+redis>=5.0.1
+pymongo>=4.6.1
+
+# Configuration & UI (REQUIRED)
+pyyaml>=6.0.1
+rich>=13.7.0
+colorama>=0.4.6
+python-dotenv>=1.0.0
+
+# API Framework (REQUIRED)
+fastapi>=0.108.0
+uvicorn>=0.25.0
+pydantic>=2.5.3
+
+# Data Processing (Use compatible versions for Python 3.13)
+# pandas>=2.3.0 has Python 3.13 wheels
+pandas>=2.3.0
+numpy>=2.0.0
+
+# Utilities
+tqdm>=4.66.1
+python-dateutil>=2.8.2
+fake-useragent>=1.4.0
+psutil>=5.9.0
+
+# Network Tools
+pysocks>=1.7.1
+
+# Optional - Uncomment if needed
+# selenium>=4.16.0
+# playwright>=1.40.0
+# scrapy>=2.11.0
+# opencv-python>=4.9.0

@@ -460,16 +460,17 @@ class EliteDarkWebMonitor:
         try:
             self.es = Elasticsearch(['http://localhost:9200'])
             logger.info("[+] Connected to Elasticsearch")
-        except:
+        except Exception as e:
             self.es = None
-            logger.warning("[!] Elasticsearch not available")
+            logger.warning(f"[!] Elasticsearch not available: {str(e)}")
         
         # Redis for caching
         try:
             self.redis = redis.Redis(host='localhost', port=6379, decode_responses=True)
             logger.info("[+] Connected to Redis")
-        except:
+        except Exception as e:
             self.redis = None
+            logger.warning(f"[!] Redis connection failed: {str(e)}")
     
     async def initialize(self) -> bool:
         """Initialize Tor and monitoring components"""

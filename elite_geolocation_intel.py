@@ -86,8 +86,8 @@ class IPGeolocationEngine:
         try:
             self.geoip_reader = geoip2.database.Reader('/usr/share/GeoIP/GeoLite2-City.mmdb')
             logger.info("[+] GeoIP2 database loaded")
-        except:
-            logger.warning("[!] GeoIP2 database not found - install GeoLite2-City.mmdb")
+        except Exception as e:
+            logger.warning(f"[!] GeoIP2 database not found: {str(e)} - install GeoLite2-City.mmdb")
     
     async def create_session(self):
         """Create aiohttp session"""

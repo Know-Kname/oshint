@@ -1,26 +1,20 @@
-# Hughes Clues Configuration File
-
-# Database Configuration
-mongodb_uri: "mongodb://localhost:27017"
-redis_host: "localhost"
+mongodb_uri: mongodb://localhost:27017
+redis_host: localhost
 redis_port: 6379
-
-# Performance Settings
 max_workers: 4
-cache_ttl: 3600  # 1 hour
+cache_ttl: 3600
 enable_uvloop: true
-
-# API Keys (fill in your keys)
 api_keys:
-  shodan_key: "DiRn2m6masjvZFgsOUV3db96LDLJYSsx"
-  censys_id: "JTCU4bL7"
-  censys_secret: "censys_JTCU4bL7_DQEmsjc9Sgi7dLr75rq2VtoH"
-  virustotal_key: "706bcf8535dd0434922e9265ffcfb749251b1f4528c524c2324e92726ba9b85b"
-  securitytrails_key: "f90_-9PpV7lx2SVz150MC_D2MGaavl5D"
-  urlscan_key: "019a50c9-42fb-7509-b186-fc7d26977b31"
-  hibp_key: ""
-
-# Analysis Configuration
+  # API keys should be set in .env file or environment variables
+  # Use the format: SHODAN_API_KEY=your_key_here in .env
+  # These values will be loaded from environment variables
+  shodan_key: ${SHODAN_API_KEY}
+  censys_id: ${CENSYS_ID}
+  censys_secret: ${CENSYS_SECRET}
+  virustotal_key: ${VIRUSTOTAL_API_KEY}
+  securitytrails_key: ${SECURITYTRAILS_API_KEY}
+  urlscan_key: ${URLSCAN_API_KEY}
+  hibp_key: ${HIBP_API_KEY}
 analysis:
   anomaly_threshold: 0.95
   correlation_threshold: 0.7
@@ -30,17 +24,13 @@ analysis:
     breaches: 0.2
     infrastructure: 0.15
     reconnaissance: 0.1
-
-# Operation Timeouts (seconds)
 timeouts:
   reconnaissance: 300
   web_scraping: 600
   credential_harvest: 300
   geolocation: 120
   dark_web: 900
-
-# Logging Configuration
 logging:
-  level: "INFO"
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  file: "hughes_clues.log"
+  level: INFO
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  file: hughes_clues.log

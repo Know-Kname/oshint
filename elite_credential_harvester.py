@@ -32,7 +32,8 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import numpy as np
 from urllib.parse import urljoin, urlparse
 import socket
-import telnetlib
+# telnetlib removed in Python 3.13 - not used in this module
+# import telnetlib
 from ftplib import FTP
 import paramiko
 from smb.SMBConnection import SMBConnection

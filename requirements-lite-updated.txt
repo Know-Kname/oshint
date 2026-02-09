@@ -1,0 +1,74 @@
+# Hughes Clues - Lite Version (Core OSINT Only)
+# This version removes heavy ML/AI dependencies for faster installation
+# Use this if you don't need advanced AI features
+# UPDATED: January 2025 - Security patches and deprecation fixes
+
+# HTTP and Async
+aiohttp~=3.9.3  # Updated - Security patches
+requests~=2.31.0  # Updated - CVE fixes
+httpx~=0.26.0  # Updated
+
+# Web Scraping & Processing (choose one)
+beautifulsoup4~=4.12.3  # Updated
+selenium~=4.16.0  # Updated
+lxml~=5.1.0  # Updated
+playwright~=1.40.0
+
+# DNS & Network
+dnspython~=2.4.2  # Updated
+python-whois~=0.8.0
+aiodns~=3.1.1  # Updated
+netaddr~=0.9.0  # Updated
+
+# Credentials & Hashing
+bcrypt~=4.1.2  # Updated
+passlib~=1.7.4
+paramiko~=3.4.0  # Updated - Security fixes
+asyncssh~=2.14.2  # Updated
+cryptography~=42.0.2  # CRITICAL UPDATE - CVE fixes
+
+# Database (MongoDB)
+pymongo~=4.6.1  # Updated
+redis~=5.0.1  # Updated - Now includes async support (aioredis deprecated)
+# REMOVED: aioredis - Use redis~=5.0.1 with async support instead
+
+# Data Processing
+pandas~=2.1.4  # Updated
+numpy~=1.26.3  # Updated - Security fixes
+
+# Geolocation
+geoip2~=4.8.0  # Updated
+
+# System & Network
+pysmb~=1.2.9.1  # Updated
+pysocks~=1.7.1
+stem~=1.8.2  # Updated - Tor integration
+
+# Performance
+psutil~=5.9.7  # Updated
+aiofiles~=23.2.1  # Updated for async file operations
+uvloop~=0.19.0; platform_system != "Windows"  # Updated
+
+# Utilities & UI
+tqdm~=4.66.1  # Updated
+colorama~=0.4.6
+pyyaml~=6.0.1  # Updated - Security patches
+python-dateutil~=2.8.2
+fake-useragent~=1.4.0
+rich~=13.7.0  # Updated - Terminal formatting
+
+# Environment Variables (NEW)
+python-dotenv~=1.0.0  # NEW - Secure config management
+
+# API & Web Framework
+fastapi~=0.108.0  # For API server
+uvicorn[standard]~=0.25.0  # ASGI server
+pydantic~=2.5.3  # Data validation
+
+# Development
+pytest~=7.4.3  # Updated
+pytest-asyncio~=0.23.3  # Updated
+
+# Security Tools (NEW - recommended for production)
+bandit~=1.7.6  # NEW - Security linter
+safety~=3.0.1  # NEW - Vulnerability scanner
