@@ -91,7 +91,7 @@ pytest~=7.4.3  # Updated from >=7.3.0
 pytest-asyncio~=0.23.3  # Updated from >=0.21.0
 black~=23.12.1  # Updated - Code formatter
 mypy~=1.8.0  # Updated - Type checker
-pylint~=3.0.3  # Updated - Linter
+pylint~=4.0.4  # Updated - Linter
 
 # Security scanning (NEW - for CI/CD)
 bandit~=1.7.6  # NEW - Security linter
