@@ -73,7 +73,7 @@ docker~=7.0.0  # Updated from >=6.1.0
 tqdm~=4.66.1  # Updated from >=4.65.0
 colorama~=0.4.6
 pyyaml~=6.0.1  # Updated from >=6.0.0 - Security patches
-python-dateutil~=2.8.2
+python-dateutil~=2.9.0
 fake-useragent~=1.4.0
 rich~=13.7.0  # Updated from >=13.5.0
 python-magic~=0.4.27
