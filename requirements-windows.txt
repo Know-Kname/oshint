@@ -56,7 +56,7 @@ opencv-python~=4.9.0.80
 
 # Visualization & Graphs
 networkx~=3.2.1
-matplotlib~=3.8.2
+matplotlib~=3.10.8
 
 # Geolocation
 geoip2~=4.7.0
